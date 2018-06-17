@@ -54,7 +54,7 @@ import urllib
 from absl import flags
 import tensorflow as tf
 
-from google.cloud import storage
+#from google.cloud import storage
 
 flags.DEFINE_string(
     'project', None, 'Google cloud project id for uploading the dataset.')
@@ -77,13 +77,15 @@ LABELS_URL = 'https://raw.githubusercontent.com/tensorflow/models/master/researc
 
 TRAINING_FILE = 'ILSVRC2012_img_train.tar'
 VALIDATION_FILE = 'ILSVRC2012_img_val.tar'
-LABELS_FILE = 'synset_labels.txt'
+#LABELS_FILE = 'synset_labels.txt'
+LABELS_FILE = 'words.txt'
 
 TRAINING_SHARDS = 1024
 VALIDATION_SHARDS = 128
 
 TRAINING_DIRECTORY = 'train'
-VALIDATION_DIRECTORY = 'validation'
+#VALIDATION_DIRECTORY = 'validation'
+VALIDATION_DIRECTORY = 'val'
 
 
 def _check_or_create_dir(directory):
@@ -155,7 +157,12 @@ def _int64_feature(value):
 
 def _bytes_feature(value):
   """Wrapper for inserting bytes features into Example proto."""
-  return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+  if not isinstance(value, list):
+    value = [value]
+  else:
+    value = value.encode()
+
+  return tf.train.Feature(bytes_list=tf.train.BytesList(value=value))
 
 
 def _convert_to_example(filename, image_buffer, label, synset, height, width):
@@ -171,9 +178,11 @@ def _convert_to_example(filename, image_buffer, label, synset, height, width):
   Returns:
     Example proto
   """
-  colorspace = 'RGB'
+  colorspace = b'RGB'
   channels = 3
-  image_format = 'JPEG'
+  image_format = b'JPEG'
+  synsets = synset.encode()
+  filename_1 = filename.encode()
 
   example = tf.train.Example(features=tf.train.Features(feature={
       'image/height': _int64_feature(height),
@@ -181,9 +190,9 @@ def _convert_to_example(filename, image_buffer, label, synset, height, width):
       'image/colorspace': _bytes_feature(colorspace),
       'image/channels': _int64_feature(channels),
       'image/class/label': _int64_feature(label),
-      'image/class/synset': _bytes_feature(synset),
+      'image/class/synset': _bytes_feature(synsets),
       'image/format': _bytes_feature(image_format),
-      'image/filename': _bytes_feature(os.path.basename(filename)),
+      'image/filename': _bytes_feature(os.path.basename(filename_1)),
       'image/encoded': _bytes_feature(image_buffer)}))
   return example
 
@@ -276,7 +285,7 @@ def _process_image(filename, coder):
     width: integer, image width in pixels.
   """
   # Read the image file.
-  with tf.gfile.FastGFile(filename, 'r') as f:
+  with tf.gfile.FastGFile(filename, 'rb') as f:
     image_data = f.read()
 
   # Clean the dirty data.
@@ -363,7 +372,7 @@ def convert_to_tf_records(raw_data_dir):
   # across the batches.
   random.seed(0)
   def make_shuffle_idx(n):
-    order = range(n)
+    order = list(range(n))
     random.shuffle(order)
     return order
 
@@ -444,29 +453,30 @@ def upload_to_gcs(training_records, validation_records):
 def main(argv):  # pylint: disable=unused-argument
   tf.logging.set_verbosity(tf.logging.INFO)
 
-  if FLAGS.project is None:
-    raise ValueError('GCS Project must be provided.')
+  #if FLAGS.project is None:
+  #  raise ValueError('GCS Project must be provided.')
 
-  if FLAGS.gcs_output_path is None:
-    raise ValueError('GCS output path must be provided.')
-  elif not FLAGS.gcs_output_path.startswith('gs://'):
-    raise ValueError('GCS output path must start with gs://')
+  #if FLAGS.gcs_output_path is None:
+  #  raise ValueError('GCS output path must be provided.')
+  #elif not FLAGS.gcs_output_path.startswith('gs://'):
+  #  raise ValueError('GCS output path must start with gs://')
 
   if FLAGS.local_scratch_dir is None:
     raise ValueError('Scratch directory path must be provided.')
 
   # Download the dataset if it is not present locally
+  FLAGS.raw_data_dir = 'tiny-imagenet-200'
   raw_data_dir = FLAGS.raw_data_dir
   if raw_data_dir is None:
     raw_data_dir = os.path.join(FLAGS.local_scratch_dir, 'raw_data')
     tf.logging.info('Downloading data to raw_data_dir: %s' % raw_data_dir)
-    download_dataset(raw_data_dir)
+    #download_dataset(raw_data_dir)
 
   # Convert the raw data into tf-records
   training_records, validation_records = convert_to_tf_records(raw_data_dir)
 
   # Upload to GCS
-  upload_to_gcs(training_records, validation_records)
+  #upload_to_gcs(training_records, validation_records)
 
 
 if __name__ == '__main__':
