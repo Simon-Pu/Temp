@@ -1,5 +1,7 @@
-apt-get install nano
-apt-get install unzip
-apt-get install libsm6
-apt-get install libxrender1
-apt-get install libxext-dev
+apt-get install -y libglib2.0-0
+apt-get install -y libsm6
+apt-get install -y libxrender1
+apt-get install -y libxext-dev
+apt-get install -y unzip
+apt-get install -y nano
+pip install opencv-python
